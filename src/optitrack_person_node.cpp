@@ -21,9 +21,9 @@
 
 // instantiate local variables
 OptitrackPerson::OptitrackPerson(ros::NodeHandle& nh, std::string& subscribe_topic_base,
-                                 std::string& publish_topic, std::string& optitrack_frame_id, int publish_rate) :
+                                 std::string& publish_topic, std::string& optitrack_frame_id, int publish_rate, bool tf_enable) :
 nh_(nh), subscribe_topic_base_(subscribe_topic_base),
-publish_topic_(publish_topic), optitrack_frame_id_(optitrack_frame_id), publish_rate_(publish_rate)
+publish_topic_(publish_topic), optitrack_frame_id_(optitrack_frame_id), publish_rate_(publish_rate), tf_enable(tf_enable)
 {
     // wait if optitrack is not up
     while(!subscribeToTopics(subscribe_topic_base_))
@@ -130,6 +130,17 @@ void OptitrackPerson::person_callback(const optitrack_person::or_pose_estimator_
         // since the id is same everywhere this will not insert new value in the map
         lastMsgs[id] = msg;
         ROS_DEBUG_STREAM_NAMED(NODE_NAME, "found person " << id);
+        if (!tf_enable)
+            return;
+        transform.setOrigin(tf::Vector3(msg->pos[0].x, msg->pos[0].y,
+                                        msg->pos[0].z));
+        transform.setRotation(tf::Quaternion(msg->pos[0].qx, msg->pos[0].qy,
+                                             msg->pos[0].qz, msg->pos[0].qw));
+        broadcaster.sendTransform(tf::StampedTransform(transform,
+                                                       ros::Time::now(),
+                                                       "optitrack",
+                                                       std::to_string(id)));
+
     }
     else
     {
@@ -259,13 +270,15 @@ int main(int argc, char **argv)
     // getting topic parameters
     std::string subscribe_topic_base, publish_topic_name, optitrack_frame_id;
     int publish_rate;
+    bool tf_enable;
     nh.param<std::string>("topic_base", subscribe_topic_base, SUBSCRIBE_TOPIC_BASE);
     nh.param<std::string>("published_topic", publish_topic_name, PUBLISH_TOPIC_NAME);
     nh.param<std::string>("optitrack_frame_id", optitrack_frame_id, OPTITRACK_FRAME);
     nh.param<int>("publish_rate", publish_rate, PUBLISH_RATE);
+    nh.param<bool>("tf_enable", tf_enable, true);
 
     // initiazling OptitrackPerson class and passing the node handle to it
-    OptitrackPerson optitrackPerson(nh, subscribe_topic_base, publish_topic_name, optitrack_frame_id, publish_rate);
+    OptitrackPerson optitrackPerson(nh, subscribe_topic_base, publish_topic_name, optitrack_frame_id, publish_rate, tf_enable);
 
     // look for sigint and start spinning the node
     signal(SIGINT, sigintHandler);

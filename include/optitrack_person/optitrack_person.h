@@ -24,6 +24,7 @@
 
 #include <ros/ros.h>
 #include <tf/tf.h>
+#include <tf/transform_broadcaster.h>
 
 #include <optitrack_person/or_pose_estimator_state.h>
 #include <spencer_tracking_msgs/TrackedPersons.h>
@@ -33,7 +34,7 @@ class OptitrackPerson
     public:
     // constructor and destructor definitions
     OptitrackPerson(ros::NodeHandle& nh, std::string& topic_base,
-                    std::string& publish_topic, std::string& optitrack_frame_id, int publish_rate);
+                    std::string& publish_topic, std::string& optitrack_frame_id, int publish_rate, bool tf_enable);
     ~OptitrackPerson();
 
     private:
@@ -54,11 +55,15 @@ class OptitrackPerson
 
     uint64_t _track_id;
 
+    bool tf_enable;
+    tf::TransformBroadcaster broadcaster;
+    tf::Transform transform;
+
     // function definitions
     bool getSubTopics(ros::master::V_TopicInfo& topics, const std::string& topic_base);
 
     bool subscribeToTopics(std::string topic_base);
     void publishPersons(const ros::TimerEvent& event);
-
+    
     void person_callback(const optitrack_person::or_pose_estimator_state::ConstPtr& msg, const int id);
 };
